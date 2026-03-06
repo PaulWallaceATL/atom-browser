@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useRef } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { AnimatePresence } from "motion/react";
 
@@ -40,9 +40,16 @@ function titleFromUrl(url: string): string {
   catch { return "Loading..."; }
 }
 
+function getChromeHeight(): number {
+  const el = document.getElementById("browser-chrome");
+  if (!el) return 90;
+  return Math.ceil(el.getBoundingClientRect().height) || 90;
+}
+
 function showPage(url: string) {
+  const chromeHeight = getChromeHeight();
   if (url) {
-    invoke("navigate_to", { url }).catch((e) =>
+    invoke("navigate_to", { url, chromeHeight }).catch((e) =>
       console.error("navigate_to failed:", e),
     );
   } else {
@@ -137,34 +144,22 @@ export default function App() {
   );
 
   const showDashboard = view === "browser" && !activeTab.url;
-  const chromeRef = useRef<HTMLDivElement>(null);
-  const lastReportedHeight = useRef(0);
 
   useEffect(() => {
-    function syncChromeHeight() {
-      if (!chromeRef.current) return;
-      const h = Math.ceil(chromeRef.current.getBoundingClientRect().height);
-      if (h > 0 && h !== lastReportedHeight.current) {
-        lastReportedHeight.current = h;
-        invoke("set_chrome_height", { height: h }).catch(() => {});
-      }
+    function sync() {
+      const h = getChromeHeight();
+      invoke("set_chrome_height", { height: h }).catch(() => {});
     }
-    // Measure immediately, after layout settles, and on resize
-    syncChromeHeight();
-    const raf = requestAnimationFrame(syncChromeHeight);
-    const timer = setTimeout(syncChromeHeight, 100);
-    window.addEventListener("resize", syncChromeHeight);
-    return () => {
-      cancelAnimationFrame(raf);
-      clearTimeout(timer);
-      window.removeEventListener("resize", syncChromeHeight);
-    };
+    sync();
+    const timer = setTimeout(sync, 300);
+    window.addEventListener("resize", sync);
+    return () => { clearTimeout(timer); window.removeEventListener("resize", sync); };
   }, []);
 
   return (
     <CursorProvider>
       <div className="flex flex-col h-full" style={{ background: "var(--bg-base)" }}>
-        <div ref={chromeRef} style={{ flexShrink: 0 }}>
+        <div id="browser-chrome" style={{ flexShrink: 0, position: "relative", zIndex: 10 }}>
           <TabBar
             tabs={tabs}
             activeTabId={activeTabId}
