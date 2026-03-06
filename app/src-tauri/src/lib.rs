@@ -1,9 +1,14 @@
 use atom_shield::{ThreatAssessment, UrlClassifier};
 use serde::Serialize;
+use std::sync::atomic::{AtomicU32, Ordering};
 use tauri::webview::WebviewBuilder;
 use tauri::{AppHandle, Manager, WebviewUrl};
 
-const CHROME_HEIGHT: f64 = 88.0;
+static CHROME_HEIGHT: AtomicU32 = AtomicU32::new(92);
+
+fn chrome_height() -> f64 {
+    CHROME_HEIGHT.load(Ordering::Relaxed) as f64
+}
 
 struct AppState {
     url_classifier: UrlClassifier,
@@ -29,6 +34,11 @@ fn check_request(
     Ok(BlockCheckResult { blocked: false })
 }
 
+#[tauri::command]
+fn set_chrome_height(height: u32) {
+    CHROME_HEIGHT.store(height, Ordering::Relaxed);
+}
+
 fn get_content_bounds(app: &AppHandle) -> Option<(f64, f64)> {
     let window = app.get_window("main")?;
     let scale = window.scale_factor().ok()?;
@@ -39,8 +49,14 @@ fn get_content_bounds(app: &AppHandle) -> Option<(f64, f64)> {
 #[tauri::command]
 async fn navigate_to(url: String, app: AppHandle) -> Result<(), String> {
     let parsed = url::Url::parse(&url).map_err(|e| e.to_string())?;
+    let ch = chrome_height();
 
     if let Some(webview) = app.get_webview("content") {
+        // Restore position in case it was hidden off-screen
+        let _ = webview.set_position(tauri::LogicalPosition::new(0.0, ch));
+        if let Some((width, height)) = get_content_bounds(&app) {
+            let _ = webview.set_size(tauri::LogicalSize::new(width, height - ch));
+        }
         webview.navigate(parsed).map_err(|e| e.to_string())?;
         return Ok(());
     }
@@ -51,8 +67,8 @@ async fn navigate_to(url: String, app: AppHandle) -> Result<(), String> {
     window
         .add_child(
             WebviewBuilder::new("content", WebviewUrl::External(parsed)),
-            tauri::LogicalPosition::new(0.0, CHROME_HEIGHT),
-            tauri::LogicalSize::new(width, height - CHROME_HEIGHT),
+            tauri::LogicalPosition::new(0.0, ch),
+            tauri::LogicalSize::new(width, height - ch),
         )
         .map_err(|e: tauri::Error| e.to_string())?;
 
@@ -62,8 +78,10 @@ async fn navigate_to(url: String, app: AppHandle) -> Result<(), String> {
 #[tauri::command]
 async fn hide_content_view(app: AppHandle) -> Result<(), String> {
     if let Some(webview) = app.get_webview("content") {
+        // Move the webview off-screen so the React homepage is visible
+        let _ = webview.set_position(tauri::LogicalPosition::new(0.0, -10000.0));
         let blank = url::Url::parse("about:blank").unwrap();
-        webview.navigate(blank).map_err(|e| e.to_string())?;
+        let _ = webview.navigate(blank);
     }
     Ok(())
 }
@@ -71,9 +89,7 @@ async fn hide_content_view(app: AppHandle) -> Result<(), String> {
 #[tauri::command]
 async fn go_back(app: AppHandle) -> Result<(), String> {
     if let Some(webview) = app.get_webview("content") {
-        webview
-            .eval("history.back()")
-            .map_err(|e| e.to_string())?;
+        webview.eval("history.back()").map_err(|e| e.to_string())?;
     }
     Ok(())
 }
@@ -81,9 +97,7 @@ async fn go_back(app: AppHandle) -> Result<(), String> {
 #[tauri::command]
 async fn go_forward(app: AppHandle) -> Result<(), String> {
     if let Some(webview) = app.get_webview("content") {
-        webview
-            .eval("history.forward()")
-            .map_err(|e| e.to_string())?;
+        webview.eval("history.forward()").map_err(|e| e.to_string())?;
     }
     Ok(())
 }
@@ -91,9 +105,7 @@ async fn go_forward(app: AppHandle) -> Result<(), String> {
 #[tauri::command]
 async fn reload_page(app: AppHandle) -> Result<(), String> {
     if let Some(webview) = app.get_webview("content") {
-        webview
-            .eval("location.reload()")
-            .map_err(|e| e.to_string())?;
+        webview.eval("location.reload()").map_err(|e| e.to_string())?;
     }
     Ok(())
 }
@@ -108,14 +120,17 @@ async fn get_current_url(app: AppHandle) -> Result<String, String> {
 }
 
 fn resize_content_webview(app: &AppHandle) {
-    let Some(webview) = app.get_webview("content") else {
-        return;
-    };
-    let Some((width, height)) = get_content_bounds(app) else {
-        return;
-    };
-    let _ = webview.set_position(tauri::LogicalPosition::new(0.0, CHROME_HEIGHT));
-    let _ = webview.set_size(tauri::LogicalSize::new(width, height - CHROME_HEIGHT));
+    let Some(webview) = app.get_webview("content") else { return };
+
+    // Don't resize if webview is hidden off-screen (homepage state)
+    if let Ok(pos) = webview.position() {
+        if pos.y < -1000 { return; }
+    }
+
+    let Some((width, height)) = get_content_bounds(app) else { return };
+    let ch = chrome_height();
+    let _ = webview.set_position(tauri::LogicalPosition::new(0.0, ch));
+    let _ = webview.set_size(tauri::LogicalSize::new(width, height - ch));
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -137,6 +152,7 @@ pub fn run() {
             go_forward,
             reload_page,
             get_current_url,
+            set_chrome_height,
         ])
         .on_window_event(|window, event| {
             if let tauri::WindowEvent::Resized(_) = event {

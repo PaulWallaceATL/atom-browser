@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { AnimatePresence } from "motion/react";
 
@@ -137,23 +137,48 @@ export default function App() {
   );
 
   const showDashboard = view === "browser" && !activeTab.url;
+  const chromeRef = useRef<HTMLDivElement>(null);
+  const lastReportedHeight = useRef(0);
+
+  useEffect(() => {
+    function syncChromeHeight() {
+      if (!chromeRef.current) return;
+      const h = Math.ceil(chromeRef.current.getBoundingClientRect().height);
+      if (h > 0 && h !== lastReportedHeight.current) {
+        lastReportedHeight.current = h;
+        invoke("set_chrome_height", { height: h }).catch(() => {});
+      }
+    }
+    // Measure immediately, after layout settles, and on resize
+    syncChromeHeight();
+    const raf = requestAnimationFrame(syncChromeHeight);
+    const timer = setTimeout(syncChromeHeight, 100);
+    window.addEventListener("resize", syncChromeHeight);
+    return () => {
+      cancelAnimationFrame(raf);
+      clearTimeout(timer);
+      window.removeEventListener("resize", syncChromeHeight);
+    };
+  }, []);
 
   return (
     <CursorProvider>
       <div className="flex flex-col h-full" style={{ background: "var(--bg-base)" }}>
-        <TabBar
-          tabs={tabs}
-          activeTabId={activeTabId}
-          onSelect={selectTab}
-          onAdd={addTab}
-          onClose={closeTab}
-        />
-        <AddressBar
-          url={activeTab.url}
-          onNavigate={navigate}
-          onToggleSidebar={() => setSidebarOpen((o) => !o)}
-          onOpenCommandPalette={() => setCommandPaletteOpen(true)}
-        />
+        <div ref={chromeRef} style={{ flexShrink: 0 }}>
+          <TabBar
+            tabs={tabs}
+            activeTabId={activeTabId}
+            onSelect={selectTab}
+            onAdd={addTab}
+            onClose={closeTab}
+          />
+          <AddressBar
+            url={activeTab.url}
+            onNavigate={navigate}
+            onToggleSidebar={() => setSidebarOpen((o) => !o)}
+            onOpenCommandPalette={() => setCommandPaletteOpen(true)}
+          />
+        </div>
 
         <div className="flex flex-1 overflow-hidden">
           <div className="flex-1 relative overflow-hidden">
