@@ -1,0 +1,156 @@
+@import "tailwindcss";
+
+/* ========================================
+   ATOM BROWSER DESIGN TOKENS
+   ======================================== */
+
+@theme {
+  --color-base: var(--bg-base);
+  --color-surface: var(--bg-surface);
+  --color-elevated: var(--bg-elevated);
+  --color-glass: var(--bg-glass);
+  --color-accent: var(--accent);
+  --color-accent-soft: var(--accent-soft);
+  --color-accent-hover: var(--accent-hover);
+  --color-border: var(--border);
+  --color-border-subtle: var(--border-subtle);
+  --color-text-primary: var(--text-primary);
+  --color-text-secondary: var(--text-secondary);
+  --color-text-muted: var(--text-muted);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-error: var(--error);
+  --color-glow-accent: var(--glow-accent);
+  --color-glow-soft: var(--glow-soft);
+  --color-overlay: var(--overlay);
+}
+
+:root {
+  --bg-base: #09090b;
+  --bg-surface: #111114;
+  --bg-elevated: #1a1a1f;
+  --bg-glass: rgba(255, 255, 255, 0.03);
+  --text-primary: #ededef;
+  --text-secondary: #a0a0ab;
+  --text-muted: #5a5a68;
+  --accent: #a2a3e9;
+  --accent-soft: rgba(162, 163, 233, 0.12);
+  --accent-hover: #b8b9f0;
+  --border: rgba(255, 255, 255, 0.08);
+  --border-subtle: rgba(255, 255, 255, 0.04);
+  --glow-accent: rgba(162, 163, 233, 0.25);
+  --glow-soft: rgba(162, 163, 233, 0.08);
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.5);
+  --shadow-lg: 0 8px 30px rgba(0, 0, 0, 0.6);
+  --overlay: rgba(0, 0, 0, 0.6);
+  --success: #4ade80;
+  --warning: #fbbf24;
+  --error: #f87171;
+  --tab-h: 40px;
+  --toolbar-h: 48px;
+  --sidebar-w: 320px;
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-xl: 20px;
+}
+
+[data-theme="light"] {
+  --bg-base: #f5f5f7;
+  --bg-surface: #ffffff;
+  --bg-elevated: #f0f0f3;
+  --bg-glass: rgba(255, 255, 255, 0.7);
+  --text-primary: #111114;
+  --text-secondary: #555566;
+  --text-muted: #8888a0;
+  --accent: #7b7cc5;
+  --accent-soft: rgba(123, 124, 197, 0.1);
+  --accent-hover: #6a6bb8;
+  --border: rgba(0, 0, 0, 0.08);
+  --border-subtle: rgba(0, 0, 0, 0.04);
+  --glow-accent: rgba(123, 124, 197, 0.2);
+  --glow-soft: rgba(123, 124, 197, 0.06);
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.06);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.08);
+  --shadow-lg: 0 8px 30px rgba(0, 0, 0, 0.12);
+  --overlay: rgba(0, 0, 0, 0.3);
+  --success: #22c55e;
+  --warning: #f59e0b;
+  --error: #ef4444;
+}
+
+/* ========================================
+   BASE RESET
+   ======================================== */
+
+*,
+*::before,
+*::after {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI",
+    system-ui, sans-serif;
+  font-size: 13px;
+  color: var(--text-primary);
+  background: var(--bg-base);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  user-select: none;
+}
+
+button {
+  font-family: inherit;
+  font-size: inherit;
+  cursor: pointer;
+  border: none;
+  background: none;
+  color: inherit;
+}
+
+input {
+  font-family: inherit;
+  font-size: inherit;
+  color: inherit;
+  outline: none;
+  background: none;
+  border: none;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-muted);
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}

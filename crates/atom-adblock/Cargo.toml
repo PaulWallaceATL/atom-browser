@@ -1,0 +1,15 @@
+[package]
+name = "atom-adblock"
+description = "Ad and tracker blocking engine for Atom Browser (wraps Brave adblock-rust)"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[dependencies]
+adblock = "0.12"
+reqwest = { workspace = true }
+tokio = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+serde = { workspace = true }

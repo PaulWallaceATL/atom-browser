@@ -1,0 +1,109 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  build-linux:
+    runs-on: docker
+    container:
+      image: rust:latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install system dependencies
+        run: |
+          apt-get update
+          apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf nodejs npm
+
+      - name: Install frontend dependencies
+        working-directory: app
+        run: npm ci
+
+      - name: Build frontend
+        working-directory: app
+        run: npm run build
+
+      - name: Install Tauri CLI
+        run: cargo install tauri-cli --version "^2"
+
+      - name: Build Tauri application
+        working-directory: app
+        run: cargo tauri build
+
+      - name: Upload artifacts
+        run: |
+          echo "TODO: Upload artifacts from app/src-tauri/target/release/bundle/ to Linode Object Storage"
+          ls -la app/src-tauri/target/release/bundle/ || true
+
+  build-windows:
+    runs-on: windows
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install frontend dependencies
+        working-directory: app
+        run: npm ci
+
+      - name: Build frontend
+        working-directory: app
+        run: npm run build
+
+      - name: Install Tauri CLI
+        run: cargo install tauri-cli --version "^2"
+
+      - name: Build Tauri application
+        working-directory: app
+        run: cargo tauri build
+
+      - name: Upload artifacts
+        run: |
+          echo "TODO: Upload artifacts to Linode Object Storage"
+
+  build-macos:
+    runs-on: macos
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-darwin,x86_64-apple-darwin
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install frontend dependencies
+        working-directory: app
+        run: npm ci
+
+      - name: Build frontend
+        working-directory: app
+        run: npm run build
+
+      - name: Install Tauri CLI
+        run: cargo install tauri-cli --version "^2"
+
+      - name: Build Tauri application (ARM)
+        working-directory: app
+        run: cargo tauri build --target aarch64-apple-darwin
+
+      - name: Build Tauri application (x86)
+        working-directory: app
+        run: cargo tauri build --target x86_64-apple-darwin
+
+      - name: Upload artifacts
+        run: |
+          echo "TODO: Upload artifacts to Linode Object Storage"

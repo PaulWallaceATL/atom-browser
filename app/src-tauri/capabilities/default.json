@@ -1,0 +1,10 @@
+{
+  "identifier": "default",
+  "description": "Default capabilities for Atom Browser",
+  "windows": ["main"],
+  "permissions": [
+    "core:default",
+    "opener:default",
+    "store:default"
+  ]
+}

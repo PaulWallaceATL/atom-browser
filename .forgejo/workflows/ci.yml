@@ -1,0 +1,37 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  check:
+    runs-on: docker
+    container:
+      image: rust:latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install system dependencies
+        run: |
+          apt-get update
+          apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf nodejs npm
+
+      - name: Rust formatting check
+        run: cargo fmt --workspace -- --check
+
+      - name: Clippy lint
+        run: cargo clippy --workspace --all-targets -- -D warnings
+
+      - name: Run tests
+        run: cargo test --workspace
+
+      - name: Install frontend dependencies
+        working-directory: app
+        run: npm ci
+
+      - name: TypeScript type check
+        working-directory: app
+        run: npx tsc --noEmit
