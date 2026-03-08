@@ -33,10 +33,22 @@ jobs:
         working-directory: app
         run: cargo tauri build
 
-      - name: Upload artifacts
+      - name: Upload bundle artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: bundle-linux
+          path: app/src-tauri/target/release/bundle/
+
+      - name: Upload to Supabase Storage
+        if: secrets.SUPABASE_URL != '' && secrets.SUPABASE_SERVICE_ROLE_KEY != ''
+        working-directory: app
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          RELEASE_VERSION: ${{ github.ref_name }}
         run: |
-          echo "TODO: Upload artifacts from app/src-tauri/target/release/bundle/ to Linode Object Storage"
-          ls -la app/src-tauri/target/release/bundle/ || true
+          npm ci
+          node scripts/upload-release-supabase.mjs
 
   build-windows:
     runs-on: windows
@@ -66,9 +78,22 @@ jobs:
         working-directory: app
         run: cargo tauri build
 
-      - name: Upload artifacts
+      - name: Upload bundle artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: bundle-windows
+          path: app/src-tauri/target/release/bundle/
+
+      - name: Upload to Supabase Storage
+        if: secrets.SUPABASE_URL != '' && secrets.SUPABASE_SERVICE_ROLE_KEY != ''
+        working-directory: app
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          RELEASE_VERSION: ${{ github.ref_name }}
         run: |
-          echo "TODO: Upload artifacts to Linode Object Storage"
+          npm ci
+          node scripts/upload-release-supabase.mjs
 
   build-macos:
     runs-on: macos
@@ -104,6 +129,55 @@ jobs:
         working-directory: app
         run: cargo tauri build --target x86_64-apple-darwin
 
-      - name: Upload artifacts
+      - name: Upload bundle artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: bundle-macos
+          path: app/src-tauri/target/release/bundle/
+
+      - name: Upload to Supabase Storage
+        if: secrets.SUPABASE_URL != '' && secrets.SUPABASE_SERVICE_ROLE_KEY != ''
+        working-directory: app
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          RELEASE_VERSION: ${{ github.ref_name }}
         run: |
-          echo "TODO: Upload artifacts to Linode Object Storage"
+          npm ci
+          node scripts/upload-release-supabase.mjs
+
+  # Create a single release with all platform installers (GitHub/Forgejo Releases).
+  # On GitHub: use default GITHUB_TOKEN. On Forgejo: ensure token has repo scope.
+  release:
+    needs: [build-linux, build-windows, build-macos]
+    runs-on: docker
+    container:
+      image: node:20-bookworm
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download all bundle artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: bundle-*
+          path: artifacts
+
+      - name: Flatten assets for release
+        run: |
+          mkdir -p release-assets
+          find artifacts -type f \( -name "*.dmg" -o -name "*.msi" -o -name "*.exe" -o -name "*.deb" -o -name "*.AppImage" -o -name "*.rpm" \) -exec cp {} release-assets/ \;
+          ls -la release-assets/
+
+      - name: Create Release and upload assets
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: Atom Browser ${{ github.ref_name }}
+          body: |
+            Desktop installers for Atom Browser.
+            Choose the file for your platform (Windows, macOS, or Linux).
+          files: release-assets/*
+          draft: false
+        env:
+          # GitHub: GITHUB_TOKEN. Forgejo: set GITEA_TOKEN in repo secrets and use it here if needed.
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

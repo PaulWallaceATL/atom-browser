@@ -57,6 +57,31 @@ function showPage(url: string) {
   }
 }
 
+/** ThreatAssessment from Rust: Safe | Suspicious { confidence, category, reason } | Malicious { category, reason } */
+type ThreatAssessment =
+  | { level: "safe" }
+  | { level: "suspicious"; confidence: number; category: string; reason: string }
+  | { level: "malicious"; category: string; reason: string };
+
+async function checkUrlSafe(url: string): Promise<{ ok: true } | { ok: false; reason: string; canProceed?: boolean }> {
+  try {
+    const result = (await invoke("check_url", { url })) as ThreatAssessment;
+    if (result.level === "safe") return { ok: true };
+    if (result.level === "suspicious") {
+      const proceed = window.confirm(
+        `Atom Shield marked this site as suspicious: ${result.reason}\n\nVisit anyway?`,
+      );
+      return proceed ? { ok: true } : { ok: false, reason: result.reason, canProceed: true };
+    }
+    if (result.level === "malicious") {
+      return { ok: false, reason: result.reason };
+    }
+    return { ok: true };
+  } catch {
+    return { ok: true };
+  }
+}
+
 export default function App() {
   const [tabs, setTabs] = useState<Tab[]>([
     { id: 1, title: "New Tab", url: "" },
@@ -119,9 +144,17 @@ export default function App() {
   );
 
   const navigate = useCallback(
-    (input: string) => {
+    async (input: string) => {
       const url = resolveNavigationUrl(input);
       if (!url) return;
+
+      const threat = await checkUrlSafe(url);
+      if (!threat.ok) {
+        if (!threat.canProceed) {
+          window.alert(`Blocked by Atom Shield: ${threat.reason}`);
+        }
+        return;
+      }
 
       const title = titleFromUrl(url);
       setTabs((prev) =>
